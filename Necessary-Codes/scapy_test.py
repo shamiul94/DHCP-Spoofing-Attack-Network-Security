@@ -1,1 +1,0 @@
- sniff(iface="wlo1", prn=lambda x: x.show())
